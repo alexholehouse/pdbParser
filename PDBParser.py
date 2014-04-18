@@ -1,3 +1,8 @@
+class PDB_residueException(Exception):
+        """ Generic exception from PDB_residue errors """        
+        pass
+
+
 class PDB_atom:
     """ Main class which holds an induvidual atom from a PBD file.
         Carries out the parsing of an atom line from a PDB file into a valid
@@ -58,6 +63,7 @@ class PDB_atom:
             self.seg_ID         = line[72:76].strip()
             self.element        = line[76:78].strip()
             self.charge         = float(line[78:80].strip())
+            self.chain_local_id = -1
             self.formatted_ok   = True
 
         # Heuristic section - split by space and then use
@@ -95,7 +101,9 @@ class PDB_atom:
                     self.seg_ID         = " "
                     self.element        = " "                
                     self.charge         = " "
+                    self.chain_local_id = -1
                     self.formatted_ok   = False
+
                 elif num_cols == 11:
                     self.record_name    = splitline[0]   
                     self.atom_id        = int(splitline[1])
@@ -113,6 +121,7 @@ class PDB_atom:
                     self.seg_ID         = " "
                     self.element        = " "                
                     self.charge         = " "
+                    self.chain_local_id = -1
                     self.formatted_ok   = False
                 elif num_cols == 11:
                     self.record_name    = splitline[0]   
@@ -131,6 +140,7 @@ class PDB_atom:
                     self.seg_ID         = " "
                     self.element        = splitline[11]      
                     self.charge         = " "
+                    self.chain_local_id = -1
                     self.formatted_ok   = False
                 else:
                     raise PDB_atomException("Did not match number of columns")
@@ -152,16 +162,12 @@ class PDB_atom:
 class PDB_residue:
     """ Class for holding a single residue. """
 
-    class PDB_residueException(Exception):
-        """ Generic exception from PDB_residue errors """        
-        pass
-    
-
     def __init__(self, residue_atoms_list):
-        self.atoms = residue_atoms_list
-        self.res_name = residue_atoms_list[0].res_name
-        self.res_id = residue_atoms_list[0].res_id
-        self.chain  = residue_atoms_list[0].chain
+        self.atoms          = residue_atoms_list
+        self.res_name       = residue_atoms_list[0].res_name
+        self.res_id         = residue_atoms_list[0].res_id
+        self.chain          = residue_atoms_list[0].chain
+        self.chain_local_id = residue_atoms_list[0].chain_local_id
 
     def get_alpha_carbon(self):
         for i in self.atoms:
@@ -192,7 +198,8 @@ class PDB_residue:
         if not len(self.atoms) == len(newOrder):
             msg = "When reseting atom order in  residue must fully define the new order\n" + \
                   "Old = " + str(self.atoms) + "\n" + \
-                  "New = " + newOrder + "\n"
+                  "New = " + str(newOrder) + "\n"
+                  
             raise PDB_residueException(msg)
 
         self.atoms = newOrder
@@ -201,6 +208,18 @@ class PDB_residue:
         for atom in self.atoms:
             atom.res_name = newName
         self.res_name = newName
+
+    def rename_atom(self, oldName, newName):
+        
+        oldName = str(oldName)
+        newName = str(newName)
+        
+        for atom in self.atoms:
+            if atom.atom_name == str(oldName):
+                atom.atom_name = str(newName)
+                return
+        msg = "ERROR: Unable to find " + oldName + " in residue " + str(self.res_id) + "(" + self.res_name  + ") in chain " + self.chain + " (to replace with " + newName + ")"
+        raise PDB_residueException(msg)
 
     ## Overwritten default behaviours
 
@@ -271,20 +290,21 @@ class PDB_residue_organizer:
 
         return chain_atoms
 
-    
-            
-
-        
-        
-
-
-    def get_residue(self,resid,chainid=None):
-        pass
 
 
 class PDB_chain:
 
     def __init__(self, atomlist):                
+        """ Initialization function which takes a list of atoms all from one chain
+            and constructs a chain object. Importantly, the chain_local_id atom and residue
+            level attribute is only initilized in the "context" of a chain - i.e. by this 
+            initialization function, so this function actually completes atom and residue
+            initialization.
+
+            A crucial assumption is that all the atoms in atomlist come from the same chain.
+            In fact - this list is how a chain object is defined, so if the list contains
+            atoms/residues with different .chain values, things are going to go very wrong...
+         """
 
         self.residues = []
 
@@ -309,8 +329,34 @@ class PDB_chain:
             self.chain_name = self.residues[0].chain
         else:
             self.chain_name = None
+        
+        chain_local_id = 1        
 
-    def get_residue(self, resid):
+        ## CHAIN LOCAL ID variables in atom and residue
+        ## objects are set here!
+        ##
+        for res in self.residues:
+            for atom in res.atoms:
+                atom.chain_local_id = chain_local_id
+            res.chain_local_id = chain_local_id
+            chain_local_id=chain_local_id+1
+
+            
+
+    def get_residue(self, resid, chainLocal=False):
+        """
+            Function which returns the residue from a chain.
+
+            If chainLocal = False (default) the global resID is used
+            to search for a residue. If, on the other hand, chainLocal
+            is set to true, then the resid local to that chain is used.
+            
+            chainLocal ID values ALWAYS start from 1 for the first residue
+            in a chain and increment by one through the chain. They provide
+            an easy internal way to get (for example) the first and last
+            residue in the chain explicitly, or comparative residues when
+            dealing with many identical species.
+        """
         
         try:
             resid = int(resid)
@@ -319,10 +365,16 @@ class PDB_chain:
             raise e
             
 
-        if type(resid) == int:            
-            for res in self.residues:
-                if res.res_id == resid:
-                    return res
+        if type(resid) == int:   
+            
+            if chainLocal:
+                for res in self.residues:
+                    if res.chain_local_id == resid:                        
+                        return res
+            else:                
+                for res in self.residues:
+                    if res.res_id == resid:
+                        return res
 
 
     def get_chain_length(self):
@@ -368,23 +420,11 @@ class PDB_file:
         self.__write_chains(f)
 
         for line in self.footer:
-            f.write(line)
-
-    def convert_from_GMX_to_CAMPARI(self):
-
-        # reorder ACE and NAC if needed
-        for chainID in self.chains:
-            
-            if self.chains[chainID][0].res_name == "ACE":            
-                self.define_residue_order(chainID, 1, ["CH3", "C", "O", "1HH3", "2HH3", "3HH3"])
-            if self.chains[chainID][0].res_name == "NAC":            
-                self.define_residue_order(chainID, len(self.chains[chainID]), ["N", "CH3", "H", "1HH3", "2HH3", "3HH3"])
-                self.rename_residue(chainID, len(self.chains[chainID]), "NME")
-            
+            f.write(line)            
 
     def rename_residue(self, chainID, resID, newName):
         chain = self.chains[chainID]
-        residue = chain.get_residue(resID)
+        residue = chain.get_residue(resID, chainLocal=True)
         residue.rename_residue(newName)
 
     def define_residue_order(self, chainID, resID, atomOrder):
@@ -395,11 +435,17 @@ class PDB_file:
         """
 
         chain = self.chains[chainID]
-
-        residue = chain.get_residue(resID)
-
+        residue = chain.get_residue(resID, chainLocal=True)
         residue.set_residue_order(atomOrder)
 
+    def rename_atom(self, chainID, resID, oldName, newName):
+        
+
+        chain = self.chains[chainID]
+        residue = chain.get_residue(resID, chainLocal=True)
+        
+        residue.rename_atom(oldName, newName)
+        
 
     def __read_file(self, filename):        
         """ Reads a file into a content list line by line                                                                                                                                                                                    
@@ -550,11 +596,7 @@ class PDB_file:
                 RP = padding/2
                 LP = (padding/2)+1
             return RP*" " + str(item) + LP*" "
-            
-
-    
-        
-    
+                    
     def __len__(self):
         return len(self.chains)
 
