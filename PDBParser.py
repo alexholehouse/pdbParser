@@ -2,6 +2,10 @@ class PDB_residueException(Exception):
         """ Generic exception from PDB_residue errors """        
         pass
 
+class PDB_atomException(Exception):
+        """ Generic exception from PDB_atom errors """        
+        pass
+
 
 class PDB_atom:
     """ Main class which holds an induvidual atom from a PBD file.
@@ -14,9 +18,6 @@ class PDB_atom:
     """
 
 
-    class PDB_atomException(Exception):
-        """ Generic exception from PDB_atom errors """        
-        pass
 
     def __init__(self, line):
         self.parse(line)
@@ -39,13 +40,16 @@ class PDB_atom:
             # OUTPUT
             -         :     None
         """
+	
+	# remove trailing newline a-la Perl CHOMP
+	line = line.rstrip("\n")
 
-
-
+	
         # correctly formatted PDB files
         # TODO - assuming 80 chars means well formatted is
         #        perhaps risky. Need a more robust way to asses
         #        formatting validity
+
         if len(line) == 80:
             self.record_name    = line[0:6].strip()
             self.atom_id    = int(line[6:11].strip())
@@ -53,16 +57,19 @@ class PDB_atom:
             self.alt_location   = line[16]
             self.res_name       = line[17:20].strip()
             self.chain          = line[21]
-            self.res_iod         = line[22:26].strip()
+            self.res_id         = line[22:26].strip()
             self.res_ins_code   = line[26]
-            self.coord_X        = float(line[30-38].strip())
-            self.coord_Y        = float(line[38-46].strip())
-            self.coord_Z        = float(line[46-54].strip())
-            self.occupancy      = float(line[54-60].strip())
-            self.beta           = float(line[60-66].strip())
+            self.coord_X        = float(line[30:38].strip())
+            self.coord_Y        = float(line[38:46].strip())
+            self.coord_Z        = float(line[46:54].strip())
+            self.occupancy      = float(line[54:60].strip())
+            self.beta           = float(line[60:66].strip())
             self.seg_ID         = line[72:76].strip()
             self.element        = line[76:78].strip()
-            self.charge         = float(line[78:80].strip())
+	    if line[78:80].strip() == "":
+		    self.charge=0.0
+	    else:
+		    self.charge = float(line[78:80].strip())
             self.chain_local_id = -1
             self.formatted_ok   = True
 
@@ -72,7 +79,8 @@ class PDB_atom:
         # are identified...
         else:
             rawsplitline = filter(None, line.split(" "))
-
+	    
+	    
 
             splitline = []
             for i in rawsplitline:
@@ -82,6 +90,8 @@ class PDB_atom:
                     splitline.append(i)
                     
             num_cols = len(splitline)
+
+	    print num_cols
             
             try:
                 if num_cols == 10:
