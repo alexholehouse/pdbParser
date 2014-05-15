@@ -15,7 +15,7 @@ class CAMPARI_pdb:
         self.pdbfile.write_file(outputfilename)
         
 
-    def convert_from_CAMPARI_to_GMX(self):
+    def convert_from_CAMPARI_to_GMX(self, capChange=True):
 
         # reorder ACE and NAC if needed
 
@@ -35,7 +35,7 @@ class CAMPARI_pdb:
                     self.pdbfile.rename_atom(chainID, 1, "3H", "3HH3")
 
 
-                if self.chains[chainID][len(self.chains[chainID])-1].res_name == "NME":
+                if chains[chainID][len(chains[chainID])-1].res_name == "NME":
                 
                     finalRes = len(chains[chainID])
                 

@@ -467,23 +467,27 @@ class PDB_file:
         return header
 
     def __get_footer(self, content):
-        footer = [] 
-        
-        for line in content:
-            passedAtoms = False
+        """ 
+	"""
+	footer = [] 
+
+	passedAtoms = False
+	for line in content:
             if filter(None, line.split(" "))[0].upper() == "ATOM" or filter(None, line.split(" "))[0].upper() == "TER": 
                 passedAtoms = True
-            else:
+	    else:
                 if passedAtoms:
-                    footer.append(line)        
-            
+                    if line == "TER\n": # TER lines are actually dealt with in chains to signify the end of a chain"
+                        pass
+		    else:
+                        footer.append(line)        
         return footer
         
         
     def __parse_residues(self, content):
         """ Main parsing function build object based chains """
         
-        atomlines =[]
+	atomlines =[]
 
         # create a list of atom lines
         for line in content:
