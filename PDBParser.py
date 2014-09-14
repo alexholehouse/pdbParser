@@ -1,11 +1,49 @@
+# Python class for robustly parsing PDB files
+#
+#
+#
+#
+
+
+##-------------------------------------------------------##
+##            PDB_residueException                       ##
+##-------------------------------------------------------##
+
 class PDB_residueException(Exception):
         """ Generic exception from PDB_residue errors """        
         pass
+
+##-------------------END-OF-CLASS------------------------##
+
+
+
+##-------------------------------------------------------##
+##               PDB_atomException                       ##
+##-------------------------------------------------------##
 
 class PDB_atomException(Exception):
         """ Generic exception from PDB_atom errors """        
         pass
 
+##-------------------END-OF-CLASS------------------------##
+
+
+
+##-------------------------------------------------------##
+##               PDB_fileException                       ##
+##-------------------------------------------------------##
+
+class PDB_fileException(Exception):
+        """ Generic exception from PDB_file errors """        
+        pass
+
+##-------------------END-OF-CLASS------------------------##
+
+
+
+##-------------------------------------------------------##
+##                     PDB_atom                          ##
+##-------------------------------------------------------##
 
 class PDB_atom:
     """ Main class which holds an induvidual atom from a PBD file.
@@ -52,7 +90,7 @@ class PDB_atom:
 
         if len(line) == 80:
             self.record_name    = line[0:6].strip()
-            self.atom_id    = int(line[6:11].strip())
+            self.atom_id        = int(line[6:11].strip())
             self.atom_name      = line[12:16].strip()
             self.alt_location   = line[16]
             self.res_name       = line[17:20].strip()
@@ -106,7 +144,7 @@ class PDB_atom:
                     self.coord_X        = float(splitline[5])  
                     self.coord_Y        = float(splitline[6])  
                     self.coord_Z        = float(splitline[7])
-                    self.occupancy       = float(splitline[8])
+                    self.occupancy      = float(splitline[8])
                     self.beta           = float(splitline[9])
                     self.seg_ID         = " "
                     self.element        = " "                
@@ -126,14 +164,15 @@ class PDB_atom:
                     self.coord_X        = float(splitline[6])  
                     self.coord_Y        = float(splitline[7])  
                     self.coord_Z        = float(splitline[8])  
-                    self.occupancy       = float(splitline[9]) 
+                    self.occupancy      = float(splitline[9]) 
                     self.beta           = float(splitline[10])
                     self.seg_ID         = " "
                     self.element        = " "                
                     self.charge         = " "
                     self.chain_local_id = -1
                     self.formatted_ok   = False
-                elif num_cols == 11:
+
+                elif num_cols == 12:
                     self.record_name    = splitline[0]   
                     self.atom_id        = int(splitline[1])
                     self.atom_name      = splitline[2]   
@@ -145,7 +184,7 @@ class PDB_atom:
                     self.coord_X        = float(splitline[6])  
                     self.coord_Y        = float(splitline[7])  
                     self.coord_Z        = float(splitline[8])  
-                    self.occupancy       = float(splitline[9]) 
+                    self.occupancy      = float(splitline[9]) 
                     self.beta           = float(splitline[10])
                     self.seg_ID         = " "
                     self.element        = splitline[11]      
@@ -167,7 +206,12 @@ class PDB_atom:
 
     def __str__(self):
         return "<PDB_Atom " + self.res_name + str(self.res_id) + " -> " + self.atom_name + "[atom " + str(self.atom_id) + "]>"
+
+##-------------------END-OF-CLASS------------------------##
                     
+##-------------------------------------------------------##
+##                     PDB_residue                       ##
+##-------------------------------------------------------##
 
 class PDB_residue:
     """ Class for holding a single residue. """
@@ -189,7 +233,7 @@ class PDB_residue:
         newOrder = []
 
         # collect the ordered atom_ids to reassign - cannot
-        # assume they're incrmented by 1 each time (probably 
+        # assume they're incremented by 1 each time (probably 
         # are but...)
         new_atom_ids = []
         for atom in self.atoms:
@@ -247,6 +291,9 @@ class PDB_residue:
     
     
 
+##-------------------------------------------------------##
+##            PDB_residue_organizer                      ##
+##-------------------------------------------------------##
 
 class PDB_residue_organizer:
 
@@ -301,6 +348,10 @@ class PDB_residue_organizer:
         return chain_atoms
 
 
+
+##-------------------------------------------------------##
+##                     PDB_chain                         ##
+##-------------------------------------------------------##
 
 class PDB_chain:
 
@@ -406,16 +457,19 @@ class PDB_chain:
         return len(self.residues)
 
         
+##-------------------------------------------------------##
+##                    PDB_file                           ##
+##-------------------------------------------------------##
 
 
 class PDB_file:       
-    class PDB_fileException(Exception):
-        """ Generic exception from PDB_file errors """        
-        pass
+
 
     def __init__(self, filename):
         content = self.__read_file(filename)
+
         self.chains = self.__parse_residues(content)
+
         self.header = self.__get_header(content)
         self.footer = self.__get_footer(content)
 
@@ -529,11 +583,7 @@ class PDB_file:
             for atom in res.atoms:
                 atoms.append(atom)
 
-        return atoms
-
-
-            
-        
+        return atoms                    
 
     def __write_chains(self, handle):
         for chainname in self.chains:
